@@ -1,0 +1,488 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#17608c"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<title>IAF Bid Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a chart-room page. Summary strip first, then one working surface (radar / categories / list) with shared filters above it. */
+:root{
+  --bg:#e9eff3; --panel:#f7f9fb; --ink:#10212e; --ink-2:#3c5161; --ink-3:#66798a;
+  --line:#c9d6df; --line-2:#dfe8ee; --accent:#17608c; --accent-ink:#ffffff;
+  --goods:#1f6fa3; --serv:#cf7a14; --works:#5d8a37; --stripe:#eef3f6;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1721; --panel:#122330; --ink:#e3edf3; --ink-2:#a8bbca; --ink-3:#7b91a2;
+    --line:#274050; --line-2:#1c3341; --accent:#5fb0e6; --accent-ink:#06121b;
+    --goods:#5aa9de; --serv:#f0a04b; --works:#9cc872; --stripe:#0f1e29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1721; --panel:#122330; --ink:#e3edf3; --ink-2:#a8bbca; --ink-3:#7b91a2;
+  --line:#274050; --line-2:#1c3341; --accent:#5fb0e6; --accent-ink:#06121b;
+  --goods:#5aa9de; --serv:#f0a04b; --works:#9cc872; --stripe:#0f1e29; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;padding-inline:clamp(16px,3vw,32px);padding-block:20px 48px}
+.wrap{max-width:1240px;margin-inline:auto;display:flex;flex-direction:column;gap:18px}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.eyebrow{font-family:var(--f-data);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(34px,6vw,56px);line-height:1;letter-spacing:.005em;margin:6px 0 8px;text-wrap:balance}
+.dek{max-width:68ch;color:var(--ink-2);margin:0}
+header{display:flex;flex-direction:column}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);border-block:1px solid var(--line)}
+.strip>div{padding:12px 16px 12px 0;min-width:0}
+.strip>div+div{padding-left:16px;border-left:1px solid var(--line)}
+.strip .k{font-family:var(--f-data);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.strip .v{font-family:var(--f-display);font-weight:600;font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums}
+.strip .s{color:var(--ink-3);font-size:12px}
+
+.controls{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.field .lab{font-family:var(--f-data);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.field.grow{flex:1 1 220px}
+input[type=search],input[type=date],select{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:7px 9px;min-height:36px;width:100%}
+input[type=date]{width:auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{background:var(--bg);border:0;padding:7px 11px;min-height:36px;cursor:pointer;display:flex;align-items:center;gap:7px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="false"]{color:var(--ink-3)}
+.seg button[aria-pressed="false"] .dot{opacity:.25}
+.seg .n{font-family:var(--f-data);font-size:12px;color:var(--ink-3)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.dot.G{background:var(--goods)} .dot.S{background:var(--serv)} .dot.W{background:var(--works)}
+.btn{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:7px 12px;min-height:36px;cursor:pointer}
+.btn:hover{border-color:var(--ink-3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px}
+.chips .none{color:var(--ink-3);font-size:12px}
+.chip{background:var(--accent);color:var(--accent-ink);border:0;border-radius:99px;padding:3px 6px 3px 11px;font-size:12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip b{font-weight:500;opacity:.8}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 16px 8px;cursor:pointer;color:var(--ink-3);font-weight:500}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px}
+.panel h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0 0 2px}
+.note{color:var(--ink-3);font-size:12px;margin:0}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;margin:10px 0 8px;color:var(--ink-2);font-size:12px}
+.legend .sz{display:inline-flex;align-items:center;gap:5px}
+.legend .sz i{display:inline-block;border-radius:50%;border:1.5px solid var(--ink-3);background:transparent}
+.chart-scroll{overflow-x:auto;position:relative;border-top:1px solid var(--line-2)}
+.chart-inner{position:relative;min-width:860px}
+svg.radar{display:block;width:100%;height:auto}
+svg.radar text{fill:var(--ink-3);font-family:var(--f-data);font-size:11px}
+svg.radar .lane-label{fill:var(--ink);font-family:var(--f-body);font-size:12.5px;cursor:pointer}
+svg.radar .lane-label:hover{fill:var(--accent);text-decoration:underline}
+svg.radar .lane-count{fill:var(--ink-3)}
+svg.radar .grid{stroke:var(--line-2);stroke-width:1}
+svg.radar .grid.wk{stroke:var(--line)}
+svg.radar .stripe{fill:var(--stripe)}
+svg.radar circle.b{fill-opacity:.5;stroke-width:1.2;cursor:pointer}
+svg.radar circle.b:hover{fill-opacity:.85}
+svg.radar circle.b.sel{fill-opacity:.95;stroke:var(--ink);stroke-width:2.5}
+.b.G{fill:var(--goods);stroke:var(--goods)} .b.S{fill:var(--serv);stroke:var(--serv)} .b.W{fill:var(--works);stroke:var(--works)}
+.h.G{fill:var(--goods)} .h.S{fill:var(--serv)} .h.W{fill:var(--works)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:4px;padding:7px 9px;font-size:12px;max-width:320px;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.tip .m{font-family:var(--f-data);opacity:.8;font-size:11px}
+.empty{padding:40px 12px;text-align:center;color:var(--ink-3)}
+
+.detail{margin-top:12px;border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:8px 24px;background:var(--bg)}
+.detail .it{overflow-wrap:anywhere}
+.detail dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0;font-size:13px}
+.detail dt{font-family:var(--f-data);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.detail dd{margin:0;font-variant-numeric:tabular-nums}
+.detail a{color:var(--accent)}
+.detail .ph{color:var(--ink-3);grid-column:1/-1}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-top:12px}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px 14px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card:hover{border-color:var(--ink-3)}
+.card[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.card .nm{font-family:var(--f-display);font-weight:600;font-size:19px;line-height:1.15}
+.card .ct{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.mix{display:flex;height:7px;border-radius:2px;overflow:hidden;background:var(--line-2)}
+.mix i{display:block;height:100%}
+.mix .G{background:var(--goods)} .mix .S{background:var(--serv)} .mix .W{background:var(--works)}
+.card .when{font-family:var(--f-data);font-size:11px;color:var(--ink-3)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:34px}
+.spark i{flex:1;background:var(--ink-3);opacity:.55;min-height:2px;border-radius:1px}
+.card ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;color:var(--ink-2);font-size:12px}
+.card li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.tbl-wrap{overflow-x:auto;margin-top:10px}
+table{border-collapse:collapse;width:100%;min-width:780px;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{font-family:var(--f-data);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:500;white-space:nowrap}
+th button{background:none;border:0;padding:0;cursor:pointer;text-transform:inherit;letter-spacing:inherit;font:inherit;color:inherit}
+th button:hover,th[aria-sort] button{color:var(--ink)}
+td.num{font-family:var(--f-data);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.dt{font-family:var(--f-data);white-space:nowrap;font-size:12px}
+td.it{max-width:480px;overflow-wrap:anywhere}
+td a{color:var(--accent);white-space:nowrap}
+.catcell{display:flex;gap:6px;align-items:flex-start}
+.more{display:flex;justify-content:center;margin-top:12px}
+footer{color:var(--ink-3);font-size:12px;max-width:80ch}
+
+@media (max-width:760px){
+  .strip{grid-template-columns:repeat(2,1fr)}
+  .strip>div:nth-child(3){padding-left:0;border-left:0}
+  .strip>div:nth-child(n+3){border-top:1px solid var(--line)}
+  .detail{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){ .card,.btn,.seg button{transition:border-color .15s} }
+
+.bc{border-top:1px solid var(--line-2);padding:10px 0;display:flex;flex-direction:column;gap:3px}
+.bc-t{font-weight:500;overflow-wrap:anywhere}
+.bc-m{color:var(--ink-3);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.bc a{color:var(--accent);font-size:13px;align-self:flex-start;padding:4px 0}
+.tsec{margin-bottom:14px}.empty.small{padding:14px 0}
+.warn{background:#fff3cd;color:#5c4400;border:1px solid #e6c85a;border-radius:6px;padding:10px 12px;margin-bottom:12px}
+.newb{background:var(--accent);color:var(--accent-ink);font-family:var(--f-data);font-size:10px;padding:1px 5px;border-radius:3px;letter-spacing:.06em}
+.spark.big{height:60px;margin-top:8px}
+[hidden]{display:none!important}
+header{order:-3}.tabs{order:-2;position:sticky;top:0;background:var(--bg);z-index:4}
+#ftoggle{display:none}
+@media (max-width:700px){
+  body{padding-inline:12px;padding-top:calc(12px + env(safe-area-inset-top))}
+  .tabs{overflow-x:auto}.tabs button{padding:10px 12px 8px;white-space:nowrap}
+  .tbl-wrap table{min-width:0}.tbl-wrap thead{display:none}
+  .tbl-wrap tr{display:flex;flex-wrap:wrap;gap:2px 10px;border-bottom:1px solid var(--line-2);padding:8px 0}
+  .tbl-wrap td{border:0;padding:0}.tbl-wrap td.it{order:-1;width:100%;max-width:none;font-weight:500}
+  .row{gap:8px}.field.grow{flex-basis:100%}
+  #ftoggle{display:block;width:100%}
+  .controls:not(.open){display:none}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">GeM · Ministry of Defence · Indian Air Force</div>
+    <h1>What the Air Force is buying</h1>
+    <p class="dek" id="dek"></p>
+  </header>
+
+  <section class="strip" aria-label="Summary" id="strip"></section>
+
+  <button class="btn" id="ftoggle" type="button" hidden>Filters</button>
+  <section class="controls" aria-label="Filters">
+    <div class="row">
+      <div class="field grow"><label for="q">Search</label><input id="q" type="search" placeholder="Item name or bid number" autocomplete="off"></div>
+      <div class="field"><span class="lab">Bid type</span><div class="seg" id="types" role="group" aria-label="Bid type"></div></div>
+      <div class="field"><label for="from">Closes from</label><input id="from" type="date"></div>
+      <div class="field"><label for="to">Closes to</label><input id="to" type="date"></div>
+      <div class="field"><label for="minq">Quantity</label>
+        <select id="minq"><option value="0">Any</option><option value="10">10 or more</option><option value="100">100 or more</option><option value="1000">1,000 or more</option><option value="100000">100,000 or more</option></select></div>
+      <button class="btn" id="reset" type="button">Reset</button>
+    </div>
+    <div class="chips" id="chips" aria-live="polite"></div>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Views" id="tabs">
+    <button role="tab" id="t-today" aria-selected="true" data-tab="today">Today</button>
+    <button role="tab" id="t-radar" aria-selected="false" data-tab="radar">Radar</button>
+    <button role="tab" id="t-cats" aria-selected="false" data-tab="cats">Categories</button>
+    <button role="tab" id="t-list" aria-selected="false" data-tab="list">Bid list</button>
+  </div>
+
+  <main id="view"></main>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+(function(){
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+  fetch('data.json',{cache:'no-cache'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(boot).catch(function(){
+    document.getElementById('view').innerHTML='<div class="panel"><div class="empty">Could not load the bid data. Check your connection and reopen the app.</div></div>';
+  });
+  function boot(D){
+  var CATS = D.cats;
+  var TNAME = {G:'Goods',S:'Services',W:'Works'};
+  var ALL = {}; D.rows.forEach(function(r){ALL[r.b]=r});
+  var ROWS = D.rows.filter(function(r){return r.st==='open'}).map(function(r,i){
+    return {i:i,f:r.f||'',pe:r.pe||'',b:r.b,txt:r.i,q:r.q,s:r.s,e:r.e,c:r.c,t:r.t,d:r.d,ms:Date.parse(r.e+':00Z'),lc:(r.i+' '+r.b).toLowerCase()};
+  });
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DAY=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var DMS=86400000;
+  function dayStart(ms){return Math.floor(ms/DMS)*DMS}
+  function isoDay(ms){return new Date(ms).toISOString().slice(0,10)}
+  function fmtDay(ms){var d=new Date(ms);return d.getUTCDate()+' '+MON[d.getUTCMonth()]}
+  function fmtDayW(ms){var d=new Date(ms);return DAY[d.getUTCDay()]+' '+d.getUTCDate()+' '+MON[d.getUTCMonth()]}
+  function fmtTime(ms){var d=new Date(ms);var h=d.getUTCHours(),m=d.getUTCMinutes();var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+(m<10?'0':'')+m+' '+ap}
+  function fmtStamp(iso){var ms=Date.parse(iso+':00Z');return fmtDay(ms)+' '+new Date(ms).getUTCFullYear()+', '+fmtTime(ms)}
+  function nf(n){return n.toLocaleString('en-IN')}
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function clip(s,n){s=String(s);return s.length>n?s.slice(0,n-1)+'…':s}
+
+  var MIN_MS=Math.min.apply(null,ROWS.map(function(r){return r.ms})), MAX_MS=Math.max.apply(null,ROWS.map(function(r){return r.ms}));
+  var MIN_DAY=dayStart(MIN_MS), MAX_DAY=dayStart(MAX_MS);
+  var MAXQ=Math.max.apply(null,ROWS.map(function(r){return r.q}));
+
+  var st={q:'',types:{G:true,S:true,W:true},from:isoDay(MIN_DAY),to:isoDay(MAX_DAY),minq:0,cats:{},tab:'today',sel:null,sortKey:'ms',sortDir:1,shown:50};
+  var $=function(id){return document.getElementById(id)};
+
+  function catSelected(){return Object.keys(st.cats).length>0}
+  function filtered(){
+    var q=st.q.trim().toLowerCase(), f=Date.parse(st.from+'T00:00:00Z'), t=Date.parse(st.to+'T00:00:00Z')+DMS;
+    var any=catSelected();
+    return ROWS.filter(function(r){
+      if(!st.types[r.t])return false;
+      if(r.ms<f||r.ms>=t)return false;
+      if(r.q<st.minq)return false;
+      if(any&&!st.cats[r.c])return false;
+      if(q&&r.lc.indexOf(q)<0)return false;
+      return true;
+    });
+  }
+  function shortItem(r){
+    var t=r.txt;
+    if(t.indexOf(';')>0&&/service|AMC|maintenance/i.test(t.slice(0,60)))return clip(t,110);
+    var parts=t.split(',');var first=parts[0].trim();
+    return parts.length>1?clip(first,80)+'  +'+(parts.length-1)+' more':clip(first,110);
+  }
+  function hash(b){var n=parseInt(String(b).split('/').pop(),10)||0;return ((n*2654435761)%1000)/1000}
+  function radius(q){return 3+8*Math.min(1,Math.log10(q+1)/6)}
+
+  /* ---------- summary strip, dek ---------- */
+  function renderStrip(rows){
+    var cats={}, perDay={}, serv=0;
+    rows.forEach(function(r){cats[r.c]=1;var d=dayStart(r.ms);perDay[d]=(perDay[d]||0)+1;if(r.t==='S')serv++});
+    var peakD=null,peakN=0;Object.keys(perDay).forEach(function(k){if(perDay[k]>peakN){peakN=perDay[k];peakD=+k}});
+    var share=rows.length?Math.round(100*serv/rows.length):0;
+    $('strip').innerHTML=
+      cell('Bids shown',nf(rows.length),'of '+nf(ROWS.length)+' open')+
+      cell('Categories',Object.keys(cats).length,'of '+CATS.length+' groups')+
+      cell('Services share',share+'%',nf(serv)+' repair, AMC and support bids')+
+      cell('Busiest closing day',peakD===null?'-':fmtDay(peakD),peakD===null?'':nf(peakN)+' bids close that day');
+    function cell(k,v,s){return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+s+'</div></div>'}
+  }
+  $('dek').textContent=nf(ROWS.length)+' open bids that close between '+fmtDay(MIN_MS)+' and '+fmtDay(MAX_MS)+', sorted into '+CATS.length+' categories. Refreshed every morning.';
+
+  /* ---------- controls ---------- */
+  function renderTypes(){
+    var cnt={G:0,S:0,W:0};ROWS.forEach(function(r){cnt[r.t]++});
+    $('types').innerHTML=['G','S','W'].map(function(k){
+      return '<button type="button" data-t="'+k+'" aria-pressed="'+st.types[k]+'"><span class="dot '+k+'"></span>'+TNAME[k]+' <span class="n">'+nf(cnt[k])+'</span></button>';
+    }).join('');
+  }
+  function renderChips(){
+    var keys=Object.keys(st.cats);
+    $('chips').innerHTML=keys.length?
+      '<span class="eyebrow">Category</span>'+keys.map(function(k){return '<button type="button" class="chip" data-cat="'+k+'" aria-label="Remove '+esc(CATS[k])+'">'+esc(CATS[k])+' <b>✕</b></button>'}).join(''):
+      '<span class="none">Showing every category. Click a lane label or a category card to focus on one.</span>';
+  }
+
+  /* ---------- radar ---------- */
+  var tipEl=null;
+  function renderRadar(rows){
+    if(!rows.length){return '<div class="panel"><div class="empty">No bids match these filters.</div></div>'}
+    var f=Date.parse(st.from+'T00:00:00Z'), t=Date.parse(st.to+'T00:00:00Z')+DMS;
+    var span=(t-f)/DMS;
+    var W=1100, L=232, R=18, T0=14, HIST=70, AX=30, LANE=40;
+    var byCat={};rows.forEach(function(r){(byCat[r.c]=byCat[r.c]||[]).push(r)});
+    var lanes=CATS.map(function(_,i){return i}).filter(function(i){return byCat[i]});
+    var top=T0+HIST+AX, H=top+lanes.length*LANE+8;
+    var X=function(ms){return L+(ms-f)/(t-f)*(W-L-R)};
+    var s='<svg class="radar" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Bubble chart of bids. Horizontal axis is closing date and time, rows are categories, bubble size is quantity, colour is bid type.">';
+    // lane stripes
+    lanes.forEach(function(c,k){ if(k%2===0) s+='<rect class="stripe" x="0" y="'+(top+k*LANE)+'" width="'+W+'" height="'+LANE+'"/>'; });
+    // grid + axis
+    var step=span<=16?1:7;
+    var firstTick=f;
+    if(step===7){ // align to Mondays
+      var d0=new Date(f).getUTCDay(); firstTick=f+((8-d0)%7)*DMS;
+    }
+    for(var ms=firstTick;ms<t;ms+=step*DMS){
+      var x=X(ms);
+      s+='<line class="grid wk" x1="'+x+'" x2="'+x+'" y1="'+(T0+HIST+6)+'" y2="'+H+'"/>';
+      s+='<text x="'+(x+3)+'" y="'+(T0+HIST+20)+'">'+(step===1?fmtDayW(ms):fmtDay(ms))+'</text>';
+    }
+    if(step===7){ for(var m2=f;m2<t;m2+=DMS){ var x2=X(m2); s+='<line class="grid" x1="'+x2+'" x2="'+x2+'" y1="'+(top-4)+'" y2="'+H+'"/>'; } }
+    // histogram per day
+    var per={};rows.forEach(function(r){var d=dayStart(r.ms);var o=per[d]=per[d]||{G:0,S:0,W:0,n:0};o[r.t]++;o.n++});
+    var maxN=0;Object.keys(per).forEach(function(k){if(per[k].n>maxN)maxN=per[k].n});
+    var dw=(W-L-R)/span, bw=Math.max(2,dw*0.72), base=T0+HIST;
+    Object.keys(per).forEach(function(k){
+      var o=per[k], x=X(+k)+(dw-bw)/2, y=base;
+      ['G','S','W'].forEach(function(tk){
+        var h=o[tk]/maxN*(HIST-14); if(!h)return; y-=h;
+        s+='<rect class="h '+tk+'" x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'"/>';
+      });
+      if(o.n===maxN) s+='<text x="'+(x+bw/2)+'" y="'+(y-3)+'" text-anchor="middle">'+o.n+'</text>';
+    });
+    s+='<line class="grid wk" x1="'+L+'" x2="'+(W-R)+'" y1="'+base+'" y2="'+base+'"/>';
+    s+='<text x="8" y="'+(T0+14)+'">BIDS CLOSING PER DAY</text>';
+    // lane labels
+    lanes.forEach(function(c,k){
+      var y=top+k*LANE+LANE/2;
+      s+='<text class="lane-label" data-lane="'+c+'" x="8" y="'+(y+1)+'">'+esc(clip(CATS[c],30))+'<title>'+esc(CATS[c])+' (click to focus)</title></text>';
+      s+='<text class="lane-count" x="'+(L-10)+'" y="'+(y+1)+'" text-anchor="end">'+byCat[c].length+'</text>';
+    });
+    // bubbles (big first so small stay on top)
+    var amp=LANE/2-9;
+    lanes.forEach(function(c,k){
+      var cy0=top+k*LANE+LANE/2;
+      byCat[c].slice().sort(function(a,b){return b.q-a.q}).forEach(function(r){
+        var cy=cy0+(hash(r.b)-.5)*2*amp, cx=X(r.ms);
+        s+='<circle class="b '+r.t+(st.sel===r.i?' sel':'')+'" data-i="'+r.i+'" cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+radius(r.q).toFixed(1)+'"/>';
+      });
+    });
+    s+='</svg>';
+    var legend='<div class="legend"><span><span class="dot G"></span> Goods</span><span><span class="dot S"></span> Services</span><span><span class="dot W"></span> Works</span>'+
+      '<span class="sz">Size = quantity: <i style="width:'+2*radius(1)+'px;height:'+2*radius(1)+'px"></i> 1 <i style="width:'+2*radius(1000)+'px;height:'+2*radius(1000)+'px"></i> 1,000 <i style="width:'+2*radius(1e6)+'px;height:'+2*radius(1e6)+'px"></i> 1,000,000+</span></div>';
+    return '<div class="panel"><h2>Radar</h2><p class="note">Left to right is closing time. Each row is a category. Hover a bubble to read it, click to pin it below. Quantities use each bid\'s own unit (pieces, kg, hours), so compare sizes within a row.</p>'+legend+
+      '<div class="chart-scroll"><div class="chart-inner" id="chartbox">'+s+'<div class="tip" id="tip" hidden></div></div></div>'+
+      '<div class="detail" id="detail"></div></div>';
+  }
+  function renderDetail(){
+    var el=$('detail'); if(!el)return;
+    var r=st.sel===null?null:ROWS[st.sel];
+    if(!r){el.innerHTML='<div class="ph">Click a bubble to read the full bid here.</div>';return}
+    el.innerHTML='<div><div class="eyebrow">'+esc(r.b)+'</div><div class="it">'+esc(r.txt)+'</div></div>'+
+      '<dl><dt>Category</dt><dd>'+esc(CATS[r.c])+'</dd><dt>Type</dt><dd>'+TNAME[r.t]+'</dd><dt>Quantity</dt><dd>'+nf(r.q)+'</dd><dt>Opened</dt><dd>'+fmtStamp(r.s)+'</dd><dt>Closes</dt><dd>'+fmtStamp(r.e)+'</dd>'+
+      '<dt>Bid</dt><dd><a href="https://bidplus.gem.gov.in/showbidDocument/'+esc(r.d)+'" target="_blank" rel="noopener">Open on GeM</a></dd></dl>';
+  }
+
+  /* ---------- categories ---------- */
+  function renderCats(rows){
+    if(!rows.length)return '<div class="panel"><div class="empty">No bids match these filters.</div></div>';
+    var by={};rows.forEach(function(r){(by[r.c]=by[r.c]||[]).push(r)});
+    var f=Date.parse(st.from+'T00:00:00Z'), t=Date.parse(st.to+'T00:00:00Z')+DMS, nb=6, bw=(t-f)/nb;
+    var order=Object.keys(by).map(Number).sort(function(a,b){return by[b].length-by[a].length||a-b});
+    var html=order.map(function(c){
+      var rs=by[c], n=rs.length, mix={G:0,S:0,W:0}, buckets=[];for(var i=0;i<nb;i++)buckets.push(0);
+      var mn=Infinity,mx=0;
+      rs.forEach(function(r){mix[r.t]++;var k=Math.min(nb-1,Math.floor((r.ms-f)/bw));buckets[k]++;if(r.ms<mn)mn=r.ms;if(r.ms>mx)mx=r.ms});
+      var bm=Math.max.apply(null,buckets);
+      var ex=rs.slice().sort(function(a,b){return a.ms-b.ms}).slice(0,3).map(function(r){return '<li title="'+esc(r.txt)+'">'+esc(clip(r.txt,64))+'</li>'}).join('');
+      return '<button type="button" class="card" data-cat="'+c+'" aria-pressed="'+(!!st.cats[c])+'">'+
+        '<div class="top"><span class="nm">'+esc(CATS[c])+'</span><span class="ct">'+n+'</span></div>'+
+        '<div class="mix" title="Goods '+mix.G+', Services '+mix.S+', Works '+mix.W+'"><i class="G" style="width:'+100*mix.G/n+'%"></i><i class="S" style="width:'+100*mix.S/n+'%"></i><i class="W" style="width:'+100*mix.W/n+'%"></i></div>'+
+        '<div class="spark" title="Closing profile across the selected dates">'+buckets.map(function(v){return '<i style="height:'+Math.max(6,100*v/bm)+'%"></i>'}).join('')+'</div>'+
+        '<div class="when">Closes '+fmtDay(mn)+(fmtDay(mn)===fmtDay(mx)?'':' to '+fmtDay(mx))+'</div>'+
+        '<ul>'+ex+'</ul></button>';
+    }).join('');
+    return '<div class="panel"><h2>Categories</h2><p class="note">Bar colour shows the goods, services and works mix. The small columns show when the category closes across your selected dates. Click a card to focus on it.</p><div class="cards">'+html+'</div></div>';
+  }
+
+  /* ---------- list ---------- */
+  function renderList(rows){
+    if(!rows.length)return '<div class="panel"><div class="empty">No bids match these filters.</div></div>';
+    var k=st.sortKey, dir=st.sortDir;
+    var sorted=rows.slice().sort(function(a,b){
+      var va=k==='c'?CATS[a.c]:a[k], vb=k==='c'?CATS[b.c]:b[k];
+      if(va<vb)return -dir; if(va>vb)return dir; return a.ms-b.ms;
+    });
+    var show=sorted.slice(0,st.shown);
+    function th(key,label,cls){var on=st.sortKey===key;return '<th'+(on?' aria-sort="'+(dir>0?'ascending':'descending')+'"':'')+(cls?' class="'+cls+'"':'')+'><button type="button" data-sort="'+key+'">'+label+(on?(dir>0?' ▲':' ▼'):'')+'</button></th>'}
+    var body=show.map(function(r){
+      return '<tr><td class="dt">'+fmtDay(r.ms)+', '+fmtTime(r.ms)+'</td><td><span class="catcell"><span class="dot '+r.t+'" title="'+TNAME[r.t]+'" style="margin-top:5px"></span>'+esc(CATS[r.c])+'</span></td>'+
+        '<td class="it" title="'+esc(r.txt)+'">'+(r.f>=new Date(Date.now()+19800000-2*DMS).toISOString().slice(0,10)?'<span class="newb">NEW</span> ':'')+esc(clip(r.txt,200))+'</td><td class="num">'+nf(r.q)+'</td>'+
+        '<td><a href="https://bidplus.gem.gov.in/showbidDocument/'+esc(r.d)+'" target="_blank" rel="noopener">'+esc(r.b.replace('GEM/2026/B/','B/'))+'</a></td></tr>';
+    }).join('');
+    var more=sorted.length>show.length?'<div class="more"><button class="btn" type="button" id="more">Show 50 more ('+nf(sorted.length-show.length)+' left)</button></div>':'';
+    return '<div class="panel"><h2>Bid list</h2><p class="note">'+nf(rows.length)+' bids. Click a column heading to sort. Bid numbers open the document on GeM.</p>'+
+      '<div class="tbl-wrap"><table><thead><tr>'+th('ms','Closes')+th('c','Category')+'<th>Items</th>'+th('q','Quantity','num')+'<th>Bid</th></tr></thead><tbody>'+body+'</tbody></table></div>'+more+'</div>';
+  }
+
+
+  /* ---------- today ---------- */
+  function bidCard(r,extra){
+    return '<div class="bc"><div class="bc-t">'+esc(clip(r.txt||'',160))+'</div><div class="bc-m"><span class="dot '+r.t+'"></span>'+esc(CATS[r.c])+
+      ' · qty '+nf(r.q)+' · closes '+fmtDay(r.ms)+', '+fmtTime(r.ms)+(extra||'')+'</div>'+
+      '<a href="https://bidplus.gem.gov.in/showbidDocument/'+esc(r.d)+'" target="_blank" rel="noopener">Open on GeM</a></div>';
+  }
+  function section(title,sub,items,empty){
+    return '<div class="panel tsec"><h2>'+title+'</h2><p class="note">'+sub+'</p>'+(items.length?items.join(''):'<div class="empty small">'+empty+'</div>')+'</div>';
+  }
+  function renderToday(){
+    var ch=D.changes||{new:[],extended:[],dropped:[]}, now=Date.now()+19800000;
+    var byB={};ROWS.forEach(function(r){byB[r.b]=r});
+    var newRows=ch.new.map(function(b){return byB[b]}).filter(Boolean);
+    var cut=new Date(now-3*DMS).toISOString().slice(0,10);
+    var recent=ROWS.filter(function(r){return r.f>=cut&&ch.new.indexOf(r.b)<0});
+    var soon=ROWS.filter(function(r){var d=r.ms-now;return d>-DMS/4&&d<3*DMS}).sort(function(a,b){return a.ms-b.ms});
+    var ext=ch.extended.map(function(b){return byB[b]}).filter(Boolean);
+    var drop=ch.dropped.map(function(b){return ALL[b]}).filter(Boolean).map(function(o){return {txt:o.i,q:o.q,ms:Date.parse(o.e+':00Z'),c:o.c,t:o.t,d:o.d}});
+    var warn=D.suspect?'<div class="warn">Today\'s collection looks incomplete, so nothing was marked as withdrawn. Showing the last known bids.</div>':'';
+    var runs=(D.runs||[]).slice(-14), mx=Math.max.apply(null,runs.map(function(r){return r.collected}).concat([1]));
+    var spark='<div class="spark big">'+runs.map(function(r){return '<i style="height:'+Math.max(6,100*r.collected/mx)+'%" title="'+r.date+': '+r.collected+'"></i>'}).join('')+'</div>';
+    function kp(k,v,s){return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+s+'</div></div>'}
+    var kpi='<section class="strip" style="margin-bottom:14px">'+
+      kp('New today',newRows.length,'since the previous run')+kp('Closing in 3 days',soon.length,'act on these first')+
+      kp('Date changes',ext.length,'closing date moved')+kp('Withdrawn',drop.length,'no longer listed')+'</section>';
+    return warn+kpi+
+      section('New today','Bids that appeared since the last run.',newRows.map(function(r){return bidCard(r)}),'Nothing new today.')+
+      section('Closing in the next 3 days','Soonest first.',soon.slice(0,40).map(function(r){return bidCard(r)}),'Nothing closes in the next 3 days.')+
+      section('Closing date changed','Extended or moved by the buyer.',ext.map(function(r){return bidCard(r,' · was '+fmtDay(Date.parse(r.pe+':00Z')))}),'No date changes.')+
+      section('Withdrawn or cancelled','Disappeared from the listing before their closing date.',drop.map(function(r){return bidCard(r)}),'None.')+
+      (recent.length?section('Added in the last 3 days','Earlier arrivals you may not have seen.',recent.slice(0,30).map(function(r){return bidCard(r)}),''):'')+
+      '<div class="panel"><h2>Daily runs</h2><p class="note">Bids collected per run, last '+runs.length+' days.</p>'+spark+'</div>';
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    var rows=filtered();
+    renderStrip(rows);renderChips();
+    var v=$('view');
+    document.querySelector('.controls').hidden=document.getElementById('strip').hidden=document.getElementById('ftoggle').hidden=(st.tab==='today');
+    v.innerHTML=st.tab==='today'?renderToday():st.tab==='radar'?renderRadar(rows):st.tab==='cats'?renderCats(rows):renderList(rows);
+    if(st.tab==='radar'){renderDetail();tipEl=$('tip')}
+    Array.prototype.forEach.call(document.querySelectorAll('#tabs button'),function(b){b.setAttribute('aria-selected',String(b.getAttribute('data-tab')===st.tab))});
+    $('types').querySelectorAll('button').forEach(function(b){b.setAttribute('aria-pressed',String(!!st.types[b.getAttribute('data-t')]))});
+  }
+  function toggleCat(c){ if(st.cats[c])delete st.cats[c]; else st.cats[c]=1; st.shown=50; render(); }
+
+  document.addEventListener('click',function(e){
+    var el=e.target;
+    var tab=el.closest&&el.closest('[data-tab]'); if(tab){st.tab=tab.getAttribute('data-tab');render();return}
+    var ty=el.closest('[data-t]'); if(ty&&ty.parentNode.id==='types'){var k=ty.getAttribute('data-t');st.types[k]=!st.types[k];st.shown=50;render();return}
+    var chip=el.closest('.chip'); if(chip){toggleCat(+chip.getAttribute('data-cat'));return}
+    var card=el.closest('.card'); if(card){toggleCat(+card.getAttribute('data-cat'));return}
+    var lane=el.closest('[data-lane]'); if(lane){toggleCat(+lane.getAttribute('data-lane'));return}
+    var c=el.closest('circle.b'); if(c){st.sel=+c.getAttribute('data-i');
+      Array.prototype.forEach.call(document.querySelectorAll('circle.b.sel'),function(n){n.classList.remove('sel')});
+      c.classList.add('sel');renderDetail();return}
+    var so=el.closest('[data-sort]'); if(so){var key=so.getAttribute('data-sort');if(st.sortKey===key)st.sortDir=-st.sortDir;else{st.sortKey=key;st.sortDir=1}render();return}
+    if(el.id==='more'){st.shown+=50;render();return}
+  });
+  var tipRow=null;
+  document.addEventListener('mouseover',function(e){
+    var c=e.target.closest&&e.target.closest('circle.b'); if(!c||!tipEl)return;
+    var r=ROWS[+c.getAttribute('data-i')];
+    tipEl.innerHTML='<div>'+esc(clip(r.txt,140))+'</div><div class="m">'+esc(r.b)+' · qty '+nf(r.q)+' · closes '+fmtDay(r.ms)+', '+fmtTime(r.ms)+'</div>';
+    tipEl.hidden=false; placeTip(e);
+  });
+  document.addEventListener('mousemove',function(e){ if(tipEl&&!tipEl.hidden)placeTip(e) });
+  document.addEventListener('mouseout',function(e){ var c=e.target.closest&&e.target.closest('circle.b'); if(c&&tipEl)tipEl.hidden=true });
+  function placeTip(e){
+    var box=$('chartbox'); if(!box)return; var b=box.getBoundingClientRect();
+    var x=e.clientX-b.left+14, y=e.clientY-b.top+14;
+    var w=tipEl.offsetWidth; if(x+w>b.width-6) x=e.clientX-b.left-w-14; if(x<4)x=4;
+    tipEl.style.left=x+'px'; tipEl.style.top=y+'px';
+  }
+  $('q').addEventListener('input',function(e){st.q=e.target.value;st.shown=50;render()});
+  $('from').addEventListener('change',function(e){if(e.target.value){st.from=e.target.value;if(st.from>st.to)st.to=st.from;$('to').value=st.to;st.shown=50;render()}});
+  $('to').addEventListener('change',function(e){if(e.target.value){st.to=e.target.value;if(st.to<st.from)st.from=st.to;$('from').value=st.from;st.shown=50;render()}});
+  $('minq').addEventListener('change',function(e){st.minq=+e.target.value;st.shown=50;render()});
+  $('reset').addEventListener('click',function(){
+    st.q='';st.types={G:true,S:true,W:true};st.from=isoDay(MIN_DAY);st.to=isoDay(MAX_DAY);st.minq=0;st.cats={};st.sel=null;st.shown=50;
+    $('q').value='';$('from').value=st.from;$('to').value=st.to;$('minq').value='0';render();
+  });
+  $('from').min=$('to').min=isoDay(MIN_DAY);$('from').max=$('to').max=isoDay(MAX_DAY);
+  $('from').value=st.from;$('to').value=st.to;
+  $('foot').textContent='Source: GeM public bid listing (bidplus.gem.gov.in), Ministry of Defence, Indian Air Force. Last refresh '+fmtStamp(D.generated)+' IST'+(D.short&&D.short.length?'. '+D.short.length+' date window(s) came back slightly short of the portal count, so a few bids may be missing today':'')+'. Categories are keyword-based and can be wrong; open the bid on GeM to confirm. Not an official GeM product.';
+  $('ftoggle').addEventListener('click',function(){document.querySelector('.controls').classList.toggle('open')});
+  renderTypes();render();
+  }
+})();
+</script>

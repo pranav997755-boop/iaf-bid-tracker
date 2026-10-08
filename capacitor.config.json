@@ -1,0 +1,9 @@
+{
+  "appId": "in.pranav.iafbids",
+  "appName": "IAF Bids",
+  "webDir": "docs",
+  "server": {
+    "url": "https://pranav997755-boop.github.io/iaf-bid-tracker/",
+    "cleartext": false
+  }
+}
